@@ -78,6 +78,9 @@ func (m model) Update(msg tea.Msg) (tea.Model, tea.Cmd) {
 		case "m":
 			m = m.SwitchPage(menuPage)
 			return m, nil
+		case "s":
+			m = m.SwitchPage(splashPage)
+			return m, nil
 		default:
 			// any other key switches the screen
 			return m, nil
