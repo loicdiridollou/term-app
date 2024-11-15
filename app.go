@@ -7,7 +7,7 @@ import (
 
 	tea "github.com/charmbracelet/bubbletea"
 	"github.com/charmbracelet/lipgloss"
-	theme "github.com/loicdiridollou/term-app/theme"
+	themer "github.com/loicdiridollou/term-app/theme"
 )
 
 type page int
@@ -16,9 +16,10 @@ type model struct {
 	ready          bool
 	switched       bool
 	page           page
-	theme_val      theme.Theme
+	theme          themer.Theme
 	viewportWidth  int
 	viewportHeight int
+	state          state
 }
 
 const (
@@ -33,6 +34,13 @@ const (
 	confirmPage
 	finalPage
 )
+
+type cursorState struct {
+	visible bool
+}
+type state struct {
+	cursor cursorState
+}
 
 func (m model) SwitchPage(page page) model {
 	m.page = page
@@ -68,6 +76,10 @@ func (m model) SplashInit() tea.Cmd {
 
 func (m model) Update(msg tea.Msg) (tea.Model, tea.Cmd) {
 	switch msg := msg.(type) {
+	case CursorTickMsg:
+		m, cmd := m.CursorUpdate(msg)
+		// TODO: this is bad, but otherwise the cursor doesn't blink
+		return m, cmd
 	case tea.KeyMsg:
 		switch msg.String() {
 		case "q", "ctrl+c":
@@ -113,8 +125,27 @@ func (m model) View() string {
 	}
 }
 
+func (m model) CursorUpdate(msg tea.Msg) (model, tea.Cmd) {
+	switch msg.(type) {
+	case CursorTickMsg:
+		m.state.cursor.visible = !m.state.cursor.visible
+		return m, tea.Every(time.Millisecond*700, func(t time.Time) tea.Msg {
+			return CursorTickMsg{}
+		})
+	}
+	return m, nil
+}
+
+func (m model) CursorView() string {
+	if m.state.cursor.visible {
+		return m.theme.Base().Background(m.theme.Highlight()).Render(" ")
+	} else {
+		return m.theme.Base().Render(" ")
+	}
+}
+
 func (m model) LogoView() string {
-	return "terminal" + " Heloo new"
+	return m.theme.TextAccent().Bold(true).Render("terminal") + m.CursorView()
 }
 
 func (m model) MenuView() string {
@@ -122,7 +153,7 @@ func (m model) MenuView() string {
 }
 
 func MenuPage() model {
-	return model{page: splashPage, viewportWidth: 100, viewportHeight: 100}
+	return model{page: splashPage, viewportWidth: 50, viewportHeight: 50}
 }
 
 func (m model) Init() tea.Cmd {
