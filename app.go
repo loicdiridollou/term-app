@@ -258,8 +258,8 @@ func (m model) Update(msg tea.Msg) (tea.Model, tea.Cmd) {
 			m.heightContainer = int(math.Min(float64(msg.Height), 30))
 		default:
 			m.size = large
-			m.widthContainer = 60
-			m.heightContainer = int(math.Min(float64(msg.Height), 30))
+			m.widthContainer = 100
+			m.heightContainer = int(math.Min(float64(msg.Height), 60))
 		}
 
 		m.widthContent = m.widthContainer - 4
@@ -277,9 +277,6 @@ func (m model) Update(msg tea.Msg) (tea.Model, tea.Cmd) {
 			return m, nil
 		case "m":
 			m = m.SwitchPage(menuPage)
-			return m, nil
-		case "s":
-			m = m.SwitchPage(splashPage)
 			return m, nil
 		case "h":
 			m = m.SwitchPage(paymentPage)
