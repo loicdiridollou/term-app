@@ -59,7 +59,9 @@ type cursorState struct {
 	visible bool
 }
 type state struct {
-	cursor cursorState
+	cursor     cursorState
+	splash     bool
+	splashTime int
 }
 
 func (m model) SwitchPage(page page) model {
@@ -184,8 +186,16 @@ func (m model) CursorInit() tea.Cmd {
 	})
 }
 
+type tickMsg time.Time
+
+func tick() tea.Cmd {
+	return tea.Tick(time.Second, func(t time.Time) tea.Msg {
+		return tickMsg(t)
+	})
+}
+
 func (m model) SplashInit() tea.Cmd {
-	return tea.Batch(m.CursorInit(), nil)
+	return tea.Batch(tick(), m.CursorInit(), nil)
 }
 
 var modifiedKeyMap = viewport.KeyMap{
@@ -238,7 +248,16 @@ func (m model) updateViewport() model {
 }
 
 func (m model) Update(msg tea.Msg) (tea.Model, tea.Cmd) {
+	var cmd tea.Cmd
 	switch msg := msg.(type) {
+
+	case tickMsg:
+		m.state.splashTime -= 1
+		if m.state.splashTime <= 0 {
+			return m.SwitchPage(aboutPage), nil
+		}
+		return m, tick()
+
 	case tea.WindowSizeMsg:
 		m.viewportWidth = msg.Width
 		m.viewportHeight = msg.Height
@@ -285,9 +304,29 @@ func (m model) Update(msg tea.Msg) (tea.Model, tea.Cmd) {
 			// any other key switches the screen
 			return m, nil
 		}
-	default:
-		return m, nil
 	}
+
+	switch m.page {
+	case splashPage:
+		m, cmd = m.SplashUpdate(msg)
+	}
+	return m, cmd
+}
+
+type DelayCompleteMsg struct{}
+
+func (m model) LoadCmds() []tea.Cmd {
+	cmds := []tea.Cmd{}
+
+	// Make sure the loading state shows for at least a couple seconds
+	cmds = append(cmds, tea.Tick(time.Second*2, func(t time.Time) tea.Msg {
+		return DelayCompleteMsg{}
+	}))
+
+	return cmds
+}
+
+func (m model) SplashUpdate(msg tea.Msg) (model, tea.Cmd) {
 	return m, nil
 }
 
@@ -397,14 +436,14 @@ func (m model) CursorView() string {
 }
 
 func (m model) LogoView() string {
-	return m.theme.TextAccent().Bold(true).Render("terminal") + m.CursorView()
+	return m.theme.TextAccent().Bold(true).Render("Loïc Diridollou") + m.CursorView()
 }
 
 func (m model) MenuView() string {
 	return "terminal" + " new menu"
 }
 
-func MenuPage() model {
+func RootPage() model {
 	renderer := lipgloss.DefaultRenderer()
 	return model{
 		page:            splashPage,
@@ -414,6 +453,7 @@ func MenuPage() model {
 		heightContainer: 100,
 		theme:           themer.BasicTheme(renderer, nil),
 		renderer:        renderer,
+		state:           state{splashTime: 2},
 	}
 }
 
@@ -422,7 +462,7 @@ func (m model) Init() tea.Cmd {
 }
 
 func main() {
-	p := tea.NewProgram(MenuPage(), tea.WithAltScreen())
+	p := tea.NewProgram(RootPage(), tea.WithAltScreen())
 	if _, err := p.Run(); err != nil {
 		fmt.Println("Error starting program:", err)
 		os.Exit(1)
