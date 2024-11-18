@@ -1,9 +1,14 @@
 package main
 
 import (
+	"context"
+	"errors"
 	"fmt"
 	"math"
+	"net"
 	"os"
+	"os/signal"
+	"syscall"
 	"time"
 
 	"github.com/charmbracelet/bubbles/key"
@@ -11,6 +16,12 @@ import (
 	tea "github.com/charmbracelet/bubbletea"
 	"github.com/charmbracelet/lipgloss"
 	"github.com/charmbracelet/lipgloss/table"
+	"github.com/charmbracelet/log"
+	"github.com/charmbracelet/ssh"
+	"github.com/charmbracelet/wish"
+	"github.com/charmbracelet/wish/activeterm"
+	"github.com/charmbracelet/wish/bubbletea"
+	"github.com/charmbracelet/wish/logging"
 	themer "github.com/loicdiridollou/term-app/theme"
 )
 
@@ -461,10 +472,65 @@ func (m model) Init() tea.Cmd {
 	return m.SplashInit()
 }
 
-func main() {
+func main_term() {
 	p := tea.NewProgram(RootPage(), tea.WithAltScreen())
 	if _, err := p.Run(); err != nil {
 		fmt.Println("Error starting program:", err)
 		os.Exit(1)
 	}
+}
+
+const (
+	host = "localhost"
+	port = "23234"
+)
+
+func main() {
+	s, err := wish.NewServer(
+		wish.WithAddress(net.JoinHostPort(host, port)),
+		wish.WithHostKeyPath(".ssh/id_ed25519"),
+		wish.WithMiddleware(
+			bubbletea.Middleware(teaHandler),
+			activeterm.Middleware(), // Bubble Tea apps usually require a PTY.
+			logging.Middleware(),
+		),
+	)
+	if err != nil {
+		log.Error("Could not start server", "error", err)
+	}
+
+	done := make(chan os.Signal, 1)
+	signal.Notify(done, os.Interrupt, syscall.SIGINT, syscall.SIGTERM)
+	log.Info("Starting SSH server", "host", host, "port", port)
+	go func() {
+		if err = s.ListenAndServe(); err != nil && !errors.Is(err, ssh.ErrServerClosed) {
+			log.Error("Could not start server", "error", err)
+			done <- nil
+		}
+	}()
+
+	<-done
+	log.Info("Stopping SSH server")
+	ctx, cancel := context.WithTimeout(context.Background(), 30*time.Second)
+	defer func() { cancel() }()
+	if err := s.Shutdown(ctx); err != nil && !errors.Is(err, ssh.ErrServerClosed) {
+		log.Error("Could not stop server", "error", err)
+	}
+}
+
+func teaHandler(s ssh.Session) (tea.Model, []tea.ProgramOption) {
+	renderer := bubbletea.MakeRenderer(s)
+
+	m := model{
+		page:            splashPage,
+		viewportWidth:   100,
+		viewportHeight:  100,
+		widthContainer:  100,
+		heightContainer: 100,
+		theme:           themer.BasicTheme(renderer, nil),
+		renderer:        renderer,
+		state:           state{splashTime: 2},
+	}
+
+	return m, []tea.ProgramOption{tea.WithAltScreen()}
 }
