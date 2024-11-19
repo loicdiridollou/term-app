@@ -294,6 +294,7 @@ func (m model) Update(msg tea.Msg) (tea.Model, tea.Cmd) {
 
 		m.widthContent = m.widthContainer - 4
 		m = m.updateViewport()
+
 	case CursorTickMsg:
 		m, cmd := m.CursorUpdate(msg)
 		// TODO: this is bad, but otherwise the cursor doesn't blink
@@ -486,6 +487,18 @@ const (
 )
 
 func main() {
+	args := os.Args
+	if len(args) < 2 {
+		panic("Too few arguments passed")
+	}
+	if args[1] == "terminal" {
+		main_term()
+	} else if args[1] == "server" {
+		main_server()
+	}
+}
+
+func main_server() {
 	s, err := wish.NewServer(
 		wish.WithAddress(net.JoinHostPort(host, port)),
 		wish.WithHostKeyPath(".ssh/id_ed25519"),
