@@ -52,6 +52,9 @@ const (
 	shopPage
 	paymentPage
 	cartPage
+	workPage
+	projectPage
+	blogPage
 	shippingPage
 	confirmPage
 	finalPage
@@ -96,8 +99,8 @@ func (m model) AboutView() string {
 }
 
 func (m model) HeaderView() string {
-	total := int64(1)
-	count := int64(3)
+	// total := int64(1)
+	// count := int64(3)
 
 	bold := m.theme.TextAccent().Bold(true).Render
 	accent := m.theme.TextAccent().Render
@@ -107,22 +110,24 @@ func (m model) HeaderView() string {
 	// menu := bold("m") + base(" ☰")
 	// back := base("← ") + bold("esc") + base(" back")
 	// mark := bold("t") + cursor
-	logo := bold("terminal")
-	shop := accent("s") + base(" shop")
+	logo := bold("loïc diridollou")
 	about := accent("a") + base(" about")
-	faq := accent("f") + base(" faq")
-	cart := accent("c") +
-		base(" cart") +
-		accent(fmt.Sprintf(" $%2v", total/100)) +
-		base(fmt.Sprintf(" [%d]", count))
+	work := accent("w") + base(" work")
+	project := accent("p") + base(" project")
+	blog := accent("b") + base(" blog")
+	contact := accent("c") + base(" contact")
+	// accent(fmt.Sprintf(" $%2v", total/100)) +
+	// base(fmt.Sprintf(" [%d]", count))
 
 	switch m.page {
-	case shopPage:
-		shop = accent("s shop")
 	case aboutPage:
 		about = accent("a about")
-	case faqPage:
-		faq = accent("f faq")
+	case workPage:
+		work = accent("w work")
+	case blogPage:
+		work = accent("b blog")
+	case projectPage:
+		project = accent("p project")
 	}
 
 	// switch m.size {
@@ -170,10 +175,11 @@ func (m model) HeaderView() string {
 
 	tabs := []string{
 		logo,
-		shop,
 		about,
-		faq,
-		cart,
+		work,
+		project,
+		blog,
+		contact,
 	}
 
 	return table.New().
